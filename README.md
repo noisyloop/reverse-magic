@@ -2,16 +2,14 @@
 
 Each day this repo looks at a vibe-coded project that is trending, writes up what is actually true about it, and then builds an original app based on the most promising idea. Nothing here is deployed; everything runs on your own machine.
 
-![Latest build: Teardown](2026-10-17/screenshot.png)
+![Latest build: Teardown](teardown/docs/screenshot.png)
 
-| Day | Recon | Build |
-|---|---|---|
-| [2026-10-17](2026-10-17/) | REA (Reverse Engineer Anything) | [Teardown](2026-10-17/teardown/): drag-and-drop static file analyzer, local only |
+![tests: 56 passing](https://img.shields.io/badge/tests-56%20passing-brightgreen)
 
-## What's in each day's folder
-
-- **Recon notes** (`*-RECON.md`, `RESEARCH.md`): what the trending project is, why it took off, which claims are verified and which are not, plus sources.
-- **The build**: a working app with its own README, tests and screenshots.
+| Folder | What it is |
+|---|---|
+| [`teardown/`](teardown/) | **Teardown**, the current build: a drag-and-drop static file analyzer that runs locally |
+| [`research/`](research/) | Recon notes: [REA](research/REA-RECON.md) (the trending project Teardown was based on) and an [earlier pass](research/RESEARCH.md). Each covers what the project is, why it took off, which claims are verified, and sources |
 
 ## Teardown (current build)
 
@@ -32,7 +30,7 @@ Everything happens in your browser. The file is never uploaded and never execute
 You need [Node.js](https://nodejs.org/) 18 or newer.
 
 ```sh
-cd 2026-10-17/teardown
+cd teardown
 npm install
 npm run dev          # opens a dev server at http://localhost:5173
 ```
@@ -54,13 +52,24 @@ npm test             # parser and disassembler tests
 
 To serve a production build, put `dist/` behind any static file server (for example `npx serve dist`). It will not work if opened straight from disk as `file://`, because browsers block Web Workers there.
 
+### Test status
+
+**All 56 tests pass** (checked 2026-10-18 on Node 22, after a fresh `npm install` from the npm registry):
+
+| Suite | Checks | What it covers |
+|---|---|---|
+| `test/smoke.mjs` | 40 passed | Detecting and parsing ELF, PE, Mach-O, ZIP, PDF, PNG and text files; truncated and corrupt files return a report instead of crashing |
+| `test/disasm.mjs` | 16 passed | x86-64, ARM64, ARM and RISC-V decoding, bad and truncated input, and a check that instruction boundaries match GNU objdump on 300 instructions (that check runs only when `objdump` is installed) |
+
+`npm run build` also completes cleanly.
+
 ### Good to know
 
 - Findings are leads, not verdicts. Teardown is not antivirus, and a lack of findings does not mean a file is safe.
 - Disassembly is a simple linear sweep from the offset you pick, so data can show up as nonsense instructions. ARM Thumb is not supported.
 - Only analyze files you are allowed to examine. Software licenses can forbid reverse engineering even when nothing leaves your machine.
 
-See the [Teardown README](2026-10-17/teardown/README.md) for the full feature list, the safety model, measured accuracy and the project layout.
+See the [Teardown README](teardown/README.md) for the full feature list, the safety model, measured accuracy and the project layout.
 
 ## License
 

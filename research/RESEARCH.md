@@ -34,7 +34,7 @@ Discrepancy worth knowing: Sportico says a two-day prototype; Stork.ai headlines
 
 ## What we built
 
-This pass's first draft (a daily music-geography game) was dropped when the direction changed. The day's build is [Teardown](teardown/); see `REA-RECON.md`.
+This pass's first draft (a daily music-geography game) was dropped when the direction changed. The day's build is [Teardown](../teardown/); see `REA-RECON.md`.
 
 ## Sources
 - [vibetrend.dev](https://vibetrend.dev/)

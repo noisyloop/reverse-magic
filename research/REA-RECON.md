@@ -22,7 +22,7 @@ Posts from Replit's Amjad Masad (Oct 7) and Matthew Berman on X (Oct 8, reported
 - Legal exposure is mostly EULA anti-reverse-engineering clauses, copyright on recovered code and assets, and trade secrets. No lawsuit against REA itself was reported. Nothing here is legal advice.
 
 ## Decision
-Do not clone REA or reuse its name (the lookalike malware episode shows the name attracts impersonation). Build the adjacent product that fits a drag-and-drop request: a private, client-side static triage tool. That is **Teardown** (`teardown/`).
+Do not clone REA or reuse its name (the lookalike malware episode shows the name attracts impersonation). Build the adjacent product that fits a drag-and-drop request: a private, client-side static triage tool. That is **Teardown** ([`teardown/`](../teardown/)).
 
 ## Sources
 - [REA repo](https://github.com/morluto/rea) and [README](https://github.com/morluto/rea/blob/main/README.md)
