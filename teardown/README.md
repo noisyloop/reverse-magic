@@ -63,7 +63,7 @@ Open `dist/index.html` through any static file server. Web Workers and Web Crypt
 
 ## Relationship to REA
 
-REA ("Reverse Engineer Anything") is a CLI and MCP server that lets AI coding agents drive tools such as Ghidra, Hopper and IDA. It has no upload UI or drag-and-drop flow. Teardown is a different, smaller product: a private, zero-install-footprint viewer for the static triage step. It is not a clone and shares no code or branding. See `../REA-RECON.md` for the research behind that call.
+REA ("Reverse Engineer Anything") is a CLI and MCP server that lets AI coding agents drive tools such as Ghidra, Hopper and IDA. It has no upload UI or drag-and-drop flow. Teardown is a different, smaller product: a private, zero-install-footprint viewer for the static triage step. It is not a clone and shares no code or branding. See [`../research/REA-RECON.md`](../research/REA-RECON.md) for the research behind that call.
 
 ## Roadmap
 
@@ -91,4 +91,4 @@ build.mjs                       esbuild bundler and dev server
 
 - The disassembler uses decoders from [`golang.org/x/arch`](https://pkg.go.dev/golang.org/x/arch) (BSD 3-Clause; see `wasm/LICENSE-x-arch` and `wasm/PATENTS-x-arch`), copied from Go 1.24.7's vendor directory. One local patch: `x86asm/decode.go` sign-extends 32-bit displacements. We also added `endbr32/64` and VEX/EVEX length handling in `wasm/main.go`.
 - `vendor/wasm_exec.js` is from the Go distribution (BSD 3-Clause, Copyright The Go Authors).
-- Built offline: the npm registry was blocked in the build environment, so dependencies were React and esbuild already present on the machine. `npm install` has not been run against the real registry for this project.
+- First built offline with React and esbuild already on the build machine. `npm install` has since been run against the real npm registry (esbuild 0.28.2, React 19.3.1) and the tests and build pass; `package-lock.json` pins those versions.
