@@ -1,0 +1,19 @@
+{
+  "name": "teardown",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Drag-and-drop static file analyzer. Runs entirely in the browser; never executes the file.",
+  "type": "module",
+  "scripts": {
+    "dev": "node build.mjs --serve",
+    "build": "node build.mjs",
+    "test": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}
