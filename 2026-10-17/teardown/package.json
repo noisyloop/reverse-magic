@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node build.mjs --serve",
     "build": "node build.mjs",
-    "test": "node test/smoke.mjs"
+    "build:wasm": "cd wasm && GOOS=js GOARCH=wasm GOFLAGS=-mod=mod GOPROXY=off go build -ldflags=\"-s -w\" -trimpath -o disasm.wasm .",
+    "test": "node test/smoke.mjs && node test/disasm.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

@@ -146,5 +146,19 @@ export function parseELF(bytes) {
     }
   }
 
-  return { info, segments, sections, needed, imports, entry: entryObj, findings }
+  // Disassembly support: pick an architecture and map file ranges to virtual addresses.
+  let arch = null
+  if (machine === 0x3e) arch = 'x86-64'
+  else if (machine === 0x03) arch = 'x86-32'
+  else if (machine === 0xb7) arch = 'arm64'
+  else if (machine === 0x28) arch = 'arm'
+  else if (machine === 0xf3 && is64) arch = 'riscv64'
+  else if (machine === 0x15) arch = le ? 'ppc64le' : 'ppc64'
+  const execSections = sections.filter((s) => s.flags[0] === 'X' && s.size > 0 && s.addr > 0 && s.offset < bytes.length)
+  const layout = (execSections.length ? execSections : []).map((s) => ({ name: s.name, off: s.offset, size: Math.min(s.size, bytes.length - s.offset), va: s.addr, exec: true }))
+  for (const l of loads) {
+    if (!layout.some((x) => x.off >= l.offset && x.off < l.offset + l.filesz)) layout.push({ name: 'LOAD', off: l.offset, size: Math.min(l.filesz, Math.max(0, bytes.length - l.offset)), va: l.vaddr, exec: false })
+  }
+
+  return { arch, layout, info, segments, sections, needed, imports, entry: entryObj, findings }
 }

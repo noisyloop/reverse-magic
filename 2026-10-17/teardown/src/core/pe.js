@@ -191,9 +191,19 @@ export function parsePE(bytes) {
 
   // Entry point bytes
   const epOff = rvaToOff(entryRva)
-  const entry = epOff >= 0 ? { off: epOff, rva: entryRva } : null
+  const entry = epOff >= 0 ? { off: epOff, rva: entryRva + imageBase } : null
+
+  // Where each file range lives in memory, so the disassembler can show real addresses.
+  const ARCHS = { 0x14c: 'x86-32', 0x8664: 'x86-64', 0xaa64: 'arm64', 0x1c0: 'arm' }
+  const layout = sections
+    .filter((s) => s.rawSize > 0 && s.rawPtr < bytes.length)
+    .map((s) => ({ name: s.name, off: s.rawPtr, size: Math.min(s.rawSize, bytes.length - s.rawPtr), va: imageBase + s.vaddr, exec: s.flags[0] === 'X' }))
+  // ARM Thumb-2 (machine 0x1c4) is what 32-bit Windows-on-ARM uses, and it is not supported.
+  const arch = ARCHS[machine] || null
 
   return {
+    arch,
+    layout,
     info,
     sections,
     dirs: dirs.filter((d) => d.rva || d.size),

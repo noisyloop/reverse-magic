@@ -4,14 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!--
-      Strict policy: scripts and the worker load only from this origin, and the page
-      cannot make network requests (connect-src). A parser bug therefore cannot
-      send file contents anywhere. connect-src is 'none' in production builds and
-      'self' under the dev server (its live-reload channel); build.mjs swaps it.
+      Strict policy for the page: scripts load only from this origin and the page
+      cannot make network requests (connect-src). connect-src is 'none' in
+      production builds and 'self' under the dev server; build.mjs swaps it.
+      'wasm-unsafe-eval' only permits compiling the bundled disassembler; it does
+      not allow eval(). NOTE: a meta CSP does not govern dedicated workers. The
+      same policy is sent as an HTTP header via public/_headers, and the workers
+      also remove their network APIs (src/lockdown.js).
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src __CONNECT__; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src __CONNECT__; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <meta name="description" content="Teardown: drag and drop any file for local static analysis. Nothing is uploaded or executed." />
     <title>Teardown</title>

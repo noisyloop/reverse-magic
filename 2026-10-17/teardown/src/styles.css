@@ -198,3 +198,12 @@ tr.click:hover td { background: var(--accent-dim); }
   .hrow { gap: 8px; font-size: 11.5px; }
   .hrow .asc { display: none; }
 }
+
+/* Disassembly */
+.disasm .note { margin: 0 0 12px; font-size: 13px; max-width: 80ch; }
+table.dis td { padding: 2px 12px; white-space: pre; vertical-align: top; }
+table.dis td.addr { color: var(--muted); }
+table.dis td.ibytes { color: #8ea1b5; }
+table.dis tr.partial td { opacity: 0.55; }
+table.dis tr.bad td { color: #ff7b7b; }
+.err { color: #ff7b7b; }

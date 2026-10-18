@@ -1,5 +1,7 @@
 // Runs the analysis off the main thread so parsing untrusted bytes can never
-// freeze the UI. The worker has no network access under the page's CSP.
+// freeze the UI. lockdown.js removes the worker's network APIs first; the CSP
+// header (public/_headers) is the real network control for workers.
+import './lockdown.js'
 import { analyze, MAX_BYTES } from './core/analyze.js'
 
 self.onmessage = async (e) => {

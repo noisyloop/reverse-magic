@@ -60,6 +60,7 @@ export function parseMachO(bytes, base = 0, sliceLen = bytes.length - base) {
       for (let k = 0; k < Math.min(nsects, 128) && r.has(so, ssz); k++, so += ssz) {
         seg.sections.push({
           name: r.fixed(so, 16),
+          addr: cmd === 0x19 ? r.u64(so + 32) : r.u32(so + 32),
           size: cmd === 0x19 ? r.u64(so + 40) : r.u32(so + 36),
           offset: r.u32(so + (cmd === 0x19 ? 48 : 40)),
         })
@@ -88,7 +89,20 @@ export function parseMachO(bytes, base = 0, sliceLen = bytes.length - base) {
     o += size
   }
 
-  const entry = entryOff != null ? { off: base + entryOff, rva: entryOff } : null
+  // Entry offset is relative to the start of __TEXT in the file; the address is its VM base plus that.
+  const textSeg = segments.find((s) => s.name === '__TEXT')
+  const entry = entryOff != null ? { off: base + entryOff, rva: (textSeg ? textSeg.vmaddr - textSeg.fileoff : 0) + entryOff } : null
+
+  const ARCHS = { 7: 'x86-32', 0x01000007: 'x86-64', 12: 'arm', 0x0100000c: 'arm64' }
+  const arch = ARCHS[cpu] || null
+  const layout = []
+  for (const seg of segments) {
+    for (const s of seg.sections) {
+      if (s.size > 0 && s.offset > 0 && base + s.offset < bytes.length) {
+        layout.push({ name: `${seg.name},${s.name}`, off: base + s.offset, size: Math.min(s.size, bytes.length - base - s.offset), va: s.addr, exec: seg.name === '__TEXT' })
+      }
+    }
+  }
 
   if (signed) findings.push(finding('macho.signed', 'info', 'Code signature load command present', 'A signature blob exists. Validity and signer were not verified here.', { incomplete: true }))
   else findings.push(finding('macho.unsigned', 'notice', 'No code signature', 'Apple Silicon will refuse unsigned arm64 code unless ad-hoc signed; many build outputs are unsigned.'))
@@ -98,7 +112,7 @@ export function parseMachO(bytes, base = 0, sliceLen = bytes.length - base) {
   const wx = segments.filter((s) => s.name !== '__PAGEZERO')
   if (wx.length === 0) findings.push(finding('macho.noseg', 'notice', 'No segments parsed', 'Load commands may be malformed or truncated.', { incomplete: true }))
 
-  return { info, segments, dylibs, rpaths, cmds: [...new Set(cmds)], entry, findings }
+  return { arch, layout, info, segments, dylibs, rpaths, cmds: [...new Set(cmds)], entry, findings }
 }
 
 export function parseFat(bytes) {

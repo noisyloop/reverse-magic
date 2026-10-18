@@ -5,8 +5,9 @@ import Strings from './components/Strings.jsx'
 import Indicators from './components/Indicators.jsx'
 import EntropyChart from './components/EntropyChart.jsx'
 import HexView from './components/HexView.jsx'
+import Disassembly from './components/Disassembly.jsx'
 
-const TABS = ['Overview', 'Structure', 'Strings', 'Indicators', 'Entropy', 'Hex']
+const TABS = ['Overview', 'Structure', 'Disassembly', 'Strings', 'Indicators', 'Entropy', 'Hex']
 
 function download(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
@@ -25,6 +26,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState('Overview')
   const [jump, setJump] = useState(0)
+  const [disStart, setDisStart] = useState(null)
   const [dragging, setDragging] = useState(false)
   const workerRef = useRef(null)
   const depth = useRef(0)
@@ -41,6 +43,7 @@ export default function App() {
     setError('')
     setTab('Overview')
     setJump(0)
+    setDisStart(null)
     w.onmessage = (e) => {
       const m = e.data
       if (m.type === 'stage') setStage(m.stage)
@@ -76,6 +79,7 @@ export default function App() {
   }, [analyzeFile])
 
   const goHex = (off) => { setJump(Math.max(0, off | 0)); setTab('Hex') }
+  const goDis = (off) => { setDisStart(Math.max(0, off | 0)); setTab('Disassembly') }
   const reset = () => { workerRef.current?.terminate(); setPhase('idle'); setResult(null); setFile(null) }
 
   return (
@@ -85,7 +89,7 @@ export default function App() {
           <span className="mark" aria-hidden="true">{'◧'}</span>
           <span className="word">Teardown</span>
         </div>
-        <div className="privacy" title="Parsing runs in a Web Worker. The page's Content-Security-Policy blocks network access.">
+        <div className="privacy" title="Parsing runs in a Web Worker with its network APIs removed. Production hosting should also send the CSP header in public/_headers.">
           <span className="dot" /> Local only · never executed
         </div>
         {phase === 'done' && (
@@ -101,7 +105,7 @@ export default function App() {
       {phase === 'idle' && (
         <main className="hero">
           <h1>Drop a file.<br />See what is inside.</h1>
-          <p className="lede">Static reverse-engineering triage for executables, archives, documents and anything else. Headers, imports, strings, entropy, indicators and a hex view. Nothing is uploaded and nothing is run.</p>
+          <p className="lede">Static reverse-engineering triage for executables, archives, documents and anything else. Headers, imports, strings, entropy, indicators, a hex view and disassembly. Nothing is uploaded and nothing is run.</p>
           <div
             className="dropzone"
             role="button"
@@ -152,11 +156,12 @@ export default function App() {
           </nav>
           <section className="panel" role="tabpanel">
             {tab === 'Overview' && <Overview r={result} onHex={goHex} />}
-            {tab === 'Structure' && <Structure r={result} onHex={goHex} />}
+            {tab === 'Structure' && <Structure r={result} onHex={goHex} onDisasm={result.disasm?.targets?.length ? goDis : null} />}
+            {tab === 'Disassembly' && <Disassembly r={result} file={file} start={disStart} onHex={goHex} />}
             {tab === 'Strings' && <Strings r={result} onHex={goHex} />}
             {tab === 'Indicators' && <Indicators r={result} onHex={goHex} />}
             {tab === 'Entropy' && <EntropyChart r={result} onHex={goHex} />}
-            {tab === 'Hex' && <HexView file={file} size={result.meta.size} offset={jump} entry={result.parsed?.entry} />}
+            {tab === 'Hex' && <HexView file={file} size={result.meta.size} offset={jump} entry={result.parsed?.entry} onDisasm={result.disasm?.targets?.length ? goDis : null} />}
           </section>
         </main>
       )}

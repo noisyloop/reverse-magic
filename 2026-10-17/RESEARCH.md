@@ -32,14 +32,9 @@ Why it wins: it has the best mix of proven demand and a simple, copyable loop. O
 
 Discrepancy worth knowing: Sportico says a two-day prototype; Stork.ai headlines "8 hours" but describes a weekend.
 
-## What we built: Needle Drop
+## What we built
 
-An original daily music-geography game, not a copy: different theme, name, questions and look.
-
-- React + Vite, d3-geo SVG map from bundled country shapes (no tile server or API key)
-- 30-question bank; the date seeds a shuffle so everyone gets the same 5 questions with no backend
-- Distance scoring (haversine, up to 1000 per round), emoji share text, local streak, countdown to the next set
-- Roadmap mirroring the research: question CMS or sheet, shared leaderboard, optional pro tier
+This pass's first draft (a daily music-geography game) was dropped when the direction changed. The day's build is [Teardown](teardown/); see `REA-RECON.md`.
 
 ## Sources
 - [vibetrend.dev](https://vibetrend.dev/)

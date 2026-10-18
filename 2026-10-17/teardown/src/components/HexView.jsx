@@ -4,7 +4,7 @@ const PAGE = 4096
 
 // Reads one page at a time from the File handle, so the hex view works on large
 // files without holding a second copy in memory.
-export default function HexView({ file, size, offset, entry }) {
+export default function HexView({ file, size, offset, entry, onDisasm }) {
   const [base, setBase] = useState(Math.floor(offset / PAGE) * PAGE)
   const [bytes, setBytes] = useState(null)
   const [goto, setGoto] = useState('')
@@ -61,6 +61,7 @@ export default function HexView({ file, size, offset, entry }) {
           <button className="ghost" type="submit">Go</button>
         </form>
         {entry && <button className="ghost" onClick={() => { setBase(Math.floor(entry.off / PAGE) * PAGE); setMark(entry.off) }}>Entry point</button>}
+        {onDisasm && <button className="ghost" onClick={() => onDisasm(mark)}>Disassemble here</button>}
         <span className="muted">0x{base.toString(16)} – 0x{Math.min(size, base + PAGE).toString(16)} of 0x{size.toString(16)}</span>
       </div>
       <div className="hexbox mono" aria-label="Hex dump">{rows}</div>

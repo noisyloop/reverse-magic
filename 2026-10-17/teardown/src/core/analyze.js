@@ -84,7 +84,13 @@ export async function analyze(bytes, meta = {}, onStage = () => {}) {
   if (strRes && strRes.truncated) findings.push(finding('gen.strtrunc', 'notice', 'String list truncated', 'Too many strings to list; the list was capped. Indicators were extracted only from the listed strings.', { incomplete: true }))
   if (type.kind === 'unknown') findings.push(finding('gen.unknown', 'notice', 'Format not recognised', 'No known signature matched. Entropy, strings and the hex view still apply.', { incomplete: true }))
   if (!['pe', 'elf', 'macho', 'macho-fat'].includes(type.kind) && type.group === 'executable') findings.push(finding('gen.noparser', 'info', 'No deep parser for this format', 'Detected by signature only.', { incomplete: true }))
-  if (['pe', 'elf', 'macho', 'macho-fat'].includes(type.kind)) findings.push(finding('gen.nodisasm', 'info', 'Disassembly not performed', 'This build shows headers, imports, strings and entry-point bytes. It does not disassemble or decompile code, so the absence of a finding here is not evidence the code is benign.', { incomplete: true }))
+  const targets = disasmTargets(parsed)
+  if (['pe', 'elf', 'macho', 'macho-fat'].includes(type.kind)) {
+    const detail = targets.length
+      ? 'Disassembly is available on demand in the Disassembly tab. It is a linear sweep only: no function discovery, control-flow graph or decompilation. The findings here come from headers, imports and strings, so an empty result is not evidence the code is benign.'
+      : 'This file\'s architecture is not supported by the disassembler, so only headers, imports, strings and raw bytes were analyzed. An empty result is not evidence the code is benign.'
+    findings.push(finding('gen.nodisasm', 'info', targets.length ? 'Code analysis is limited to disassembly' : 'No disassembler for this architecture', detail, { incomplete: true }))
+  }
   for (const e of stageErrors) findings.push(finding(`err.${e.stage}`, 'notice', `Stage failed: ${e.stage}`, e.message, { incomplete: true }))
 
   const all = [...(parsed?.findings || []), ...findings]
@@ -101,7 +107,17 @@ export async function analyze(bytes, meta = {}, onStage = () => {}) {
     iocs,
     entropy,
     embedded,
+    disasm: { targets },
     findings: all,
     stageErrors,
   }
+}
+
+// Describes where code can be disassembled: one target per supported architecture slice.
+function disasmTargets(parsed) {
+  if (!parsed) return []
+  const pick = (p, label) => (p && p.arch ? { label, arch: p.arch, layout: p.layout || [], entry: p.entry || null } : null)
+  if (parsed.kind === 'macho-fat') return (parsed.slices || []).map((sl) => pick(sl, `Mach-O slice ${sl.info?.cpu || ''}`.trim())).filter(Boolean)
+  const t = pick(parsed, parsed.info?.format || parsed.kind)
+  return t ? [t] : []
 }
