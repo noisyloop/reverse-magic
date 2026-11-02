@@ -31,8 +31,10 @@ await writeHtml()
 if (serve) {
   const ctx = await esbuild.context(options)
   await ctx.watch()
-  const { host, port } = await ctx.serve({ servedir: 'dist', port: 5173 })
-  console.log(`Teardown dev server: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`)
+  // Bind to loopback only. esbuild's default is every interface, which would
+  // expose the dev server to anyone on the same network.
+  const { host, port } = await ctx.serve({ servedir: 'dist', host: '127.0.0.1', port: 5173 })
+  console.log(`Teardown dev server: http://localhost:${port}`)
 } else {
   await esbuild.build(options)
 }

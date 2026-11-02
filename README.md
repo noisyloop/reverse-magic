@@ -4,7 +4,7 @@ Each day this repo looks at a vibe-coded project that is trending, writes up wha
 
 ![Latest build: Teardown](teardown/docs/screenshot.png)
 
-![tests: 56 passing](https://img.shields.io/badge/tests-56%20passing-brightgreen)
+![tests: 61 passing](https://img.shields.io/badge/tests-61%20passing-brightgreen)
 
 | Folder | What it is |
 |---|---|
@@ -54,11 +54,11 @@ To serve a production build, put `dist/` behind any static file server (for exam
 
 ### Test status
 
-**All 56 tests pass** (checked 2026-10-18 on Node 22, after a fresh `npm install` from the npm registry):
+**All 61 tests pass** (checked 2026-11-02 on Node 22, after a fresh `npm ci` from the npm registry; `npm audit` reports 0 vulnerabilities):
 
 | Suite | Checks | What it covers |
 |---|---|---|
-| `test/smoke.mjs` | 40 passed | Detecting and parsing ELF, PE, Mach-O, ZIP, PDF, PNG and text files; truncated and corrupt files return a report instead of crashing |
+| `test/smoke.mjs` | 45 passed | Detecting and parsing ELF, PE, Mach-O, ZIP, PDF, PNG and text files; truncated and corrupt files return a report instead of crashing; crafted files built to stall the analyzer finish in seconds |
 | `test/disasm.mjs` | 16 passed | x86-64, ARM64, ARM and RISC-V decoding, bad and truncated input, and a check that instruction boundaries match GNU objdump on 300 instructions (that check runs only when `objdump` is installed) |
 
 `npm run build` also completes cleanly.

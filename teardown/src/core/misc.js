@@ -20,7 +20,9 @@ export function parsePDF(bytes) {
     '/ObjStm (object streams)': count(/\/ObjStm\b/g),
     '/RichMedia': count(/\/RichMedia\b/g),
   }
-  const objects = count(/\d+\s+\d+\s+obj\b/g)
+  // (?<!\d) anchors each attempt at the start of a digit run; without it a long
+  // run of digits makes this scan quadratic.
+  const objects = count(/(?<!\d)\d+\s+\d+\s+obj\b/g)
   const info = { format: 'PDF', version, objects, eof_markers: count(/%%EOF/g) }
 
   if (keys['/JavaScript']) findings.push(finding('pdf.js', 'warn', 'Embedded JavaScript keywords', `${keys['/JavaScript']} occurrence(s). PDF JavaScript is a long-standing abuse vector.`, { confidence: 'medium' }))

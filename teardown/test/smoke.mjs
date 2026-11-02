@@ -148,5 +148,34 @@ sys.stdout.buffer.write(b.getvalue())
   ok((await analyze(mz, { name: 'bad.exe' })).stageErrors.length > 0, 'corrupt PE is reported as a stage error, not a crash')
 }
 
+// ---- Hostile input: crafted files must not stall the worker (each was minutes before the fix)
+{
+  console.log('hostile input')
+  const enc = (s) => new TextEncoder().encode(s)
+  const timed = async (name, bytes) => {
+    const t0 = Date.now()
+    const r = await analyze(bytes, { name })
+    return { r, ms: Date.now() - t0 }
+  }
+  let { ms } = await timed('dots.txt', enc('a.'.repeat(500000)))
+  ok(ms < 3000, `1 MB of "a.a.a…" scans in linear time (${ms} ms)`)
+  ;({ ms } = await timed('digits.pdf', enc('%PDF-1.4\n' + '1'.repeat(1000000))))
+  ok(ms < 3000, `PDF with a 1 MB digit run scans in linear time (${ms} ms)`)
+
+  // PE declaring 65535 sections that each cover the whole 4 MB file.
+  const size = 4 * 1024 * 1024
+  const pe = new Uint8Array(size); const dv = new DataView(pe.buffer)
+  pe[0] = 0x4d; pe[1] = 0x5a; dv.setUint32(0x3c, 0x40, true); dv.setUint32(0x40, 0x4550, true)
+  dv.setUint16(0x44, 0x8664, true); dv.setUint16(0x46, 0xffff, true); dv.setUint16(0x54, 240, true); dv.setUint16(0x56, 0x22, true); dv.setUint16(0x58, 0x20b, true)
+  for (let i = 0; i < 0xffff && 0x58 + 240 + i * 40 + 40 <= size; i++) dv.setUint32(0x58 + 240 + i * 40 + 16, size, true)
+  const res = await timed('sections.exe', pe)
+  ok(res.ms < 5000, `PE with 65535 overlapping sections finishes (${res.ms} ms)`)
+  ok(res.r.parsed.sections.length === 1024 && res.r.findings.some((f) => f.id === 'pe.entropyskip'), 'section count capped and skipped entropy reported')
+
+  const iocs = (await analyze(enc('beacon to https://evil.example.com/x and cdn.badsite.ru, not lib_x.com or 1.2.3.4'), { name: 'i.txt' })).iocs
+  const doms = iocs.domain.map((d) => d.value)
+  ok(doms.includes('evil.example.com') && doms.includes('cdn.badsite.ru') && !doms.includes('lib_x.com'), `domain extraction still works (${doms.join(', ')})`)
+}
+
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed')
 process.exit(failed ? 1 : 0)
