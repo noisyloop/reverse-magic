@@ -67,7 +67,6 @@ export default function Structure({ r, onHex, onDisasm }) {
         <Section title="Entry point">
           <p>RVA / address <span className="mono">{h(entry.rva)}</span> maps to file offset <span className="mono">{h(entry.off)}</span>{' '}
             <button className="mini" onClick={() => onHex(entry.off)}>view bytes</button>{onDisasm && <> <button className="mini" onClick={() => onDisasm(entry.off)}>disassemble</button></>}</p>
-          <p className="muted small">Raw bytes only. This build does not disassemble.</p>
         </Section>
       )}
 

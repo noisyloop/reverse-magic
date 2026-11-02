@@ -33,6 +33,8 @@ Drag and drop any file and get a static reverse-engineering triage: file type, h
 
 ## Run it
 
+New to the tool? Follow the [step-by-step tutorial](../README.md#tutorial-your-first-teardown) in the repo README.
+
 ```
 npm install
 npm run build        # bundles to dist/

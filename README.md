@@ -52,6 +52,68 @@ npm test             # parser and disassembler tests
 
 To serve a production build, put `dist/` behind any static file server (for example `npx serve dist`). It will not work if opened straight from disk as `file://`, because browsers block Web Workers there.
 
+### Tutorial: your first teardown
+
+About ten minutes. You'll look inside a program that's already on your computer, then find something hidden in an image. Start the dev server first (`npm run dev` in `teardown/`) and open http://localhost:5173.
+
+#### Part 1: look inside a program you already have
+
+Work on a copy, so the file picker can reach it easily:
+
+| System | Command |
+|---|---|
+| Linux | `cp /bin/ls ~/ls-copy` |
+| macOS | `cp /bin/ls ~/Desktop/ls-copy` |
+| Windows | `copy C:\Windows\System32\notepad.exe %USERPROFILE%\Desktop\` |
+
+Drag the copy onto the page. Analysis takes a second or two. Then go through the tabs left to right:
+
+1. **Overview.** At the top you'll see the file type (for example *ELF executable / shared object* on Linux, *Mach-O universal* on a Mac, *Windows PE* on Windows), the size and the hashes. Each hash has a **copy** button; paste a SHA-256 into a search engine or a malware database to see whether the file is already known. Below that are the **Findings**. For a normal system program they're mostly INFO, such as *Non-executable stack (NX)* or *Exploit mitigations*: a description of how the program was built, not a warning. WARN means "look closer", not "malware".
+2. **Structure.** The file's sections, with an entropy bar for each. Click any row to see its bytes in the Hex tab. Scroll down to see which libraries the program needs (*Needed libraries* on Linux, *Imports* on Windows, *Linked libraries* on macOS). The library list tells you a lot about what a program can do.
+3. **Disassembly.** This opens at the program's entry point, the first instruction it runs. On a modern Linux build that's usually `endbr64`. Lines with a direct `call` or `jmp` have a **→ follow** button that jumps to the target. Use the menus to switch between Intel and AT&T syntax or to show more instructions, and **Copy listing** to copy the code as text.
+4. **Strings.** Readable text found in the file. Type `usage` or `http` into the filter box. Help messages, error messages and URLs are often the quickest clue to what a program does. Click a string to see where it sits in the file.
+5. **Indicators.** URLs, domains, IP addresses, emails, file paths and registry keys pulled from those strings. They're defanged (`hxxps://www[.]gnu[.]org`) so you can paste them into a report without creating live links. Tick **show raw** to see the originals.
+6. **Entropy.** A chart of how random the bytes look across the file. Machine code sits around 5 to 6.5. Bars above the 7.2 line suggest compressed or encrypted data. Click a bar to open that region in Hex.
+7. **Hex.** The raw bytes. Type an offset (in hex, like `6d30`) into **Go to offset** to jump there, or press **Disassemble here** to decode from the highlighted byte.
+
+#### Part 2: find something hidden
+
+Hiding data after the end of an image is an old trick for smuggling payloads. Make your own example from any PNG:
+
+macOS / Linux:
+
+```sh
+cp any-picture.png test.png
+printf '\nnext stage: https://example.com/payload.bin\n' >> test.png
+```
+
+Windows (PowerShell):
+
+```powershell
+Copy-Item any-picture.png test.png
+Add-Content test.png "next stage: https://example.com/payload.bin"
+```
+
+The image still opens normally in any viewer. Drop `test.png` into Teardown and look at:
+
+1. **Overview**: a WARN finding, **Data after IEND**, saying how many bytes follow the PNG end marker. Click its **hex @ 0x…** button.
+2. **Hex**: the highlighted byte is where the image ends. Your text is right after it, readable in the right-hand column.
+3. **Indicators**: `hxxps://example[.]com/payload[.]bin` is listed. You may also see junk entries, such as a "Windows path" made of random image bytes. Indicators come from pattern matching, so check each one before you rely on it.
+
+#### Part 3: save your work
+
+- **Export JSON** (top right) saves the whole report: hashes, findings, strings, indicators and structure. Use it for notes or for comparing two versions of a file.
+- **Open another**, or click the **Teardown** logo, to clear the page and start over. Nothing is kept between files.
+
+#### What to try next
+
+- **An installer `.exe`**: usually shows *Overlay data after the last section*, which is where the packed install files live.
+- **A `.docx` or `.xlsx`**: Structure lists every file inside the archive. A document with macros shows *Office macro project present*.
+- **A `.zip` you downloaded**: checks for path tricks (*Path traversal entry names*) and extreme compression ratios before you extract it.
+- **A PDF**: flags JavaScript, auto-run actions and embedded files.
+
+Only analyze files you are allowed to examine.
+
 ### Test status
 
 **All 61 tests pass** (checked 2026-11-02 on Node 22, after a fresh `npm ci` from the npm registry; `npm audit` reports 0 vulnerabilities):
