@@ -82,7 +82,7 @@ export default function Structure({ r, onHex, onDisasm }) {
                 { k: 'rawPtr', t: 'Raw offset', cls: 'mono', f: (s) => h(s.rawPtr) },
                 { k: 'rawSize', t: 'Raw size', cls: 'mono num', f: (s) => s.rawSize.toLocaleString() },
                 { k: 'flags', t: 'XRW', cls: 'mono' },
-                { k: 'entropy', t: 'Entropy', f: (s) => <Bar v={s.entropy} /> },
+                { k: 'entropy', t: 'Entropy', f: (s) => (s.entropy == null ? '–' : <Bar v={s.entropy} />) },
               ]}
               rows={p.sections}
               onRow={(s) => onHex(s.rawPtr)}

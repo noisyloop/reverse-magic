@@ -84,6 +84,23 @@ export function shannon(bytes, start = 0, end = bytes.length) {
   return h
 }
 
+// Per-section entropy re-reads bytes, and section headers are attacker-controlled:
+// thousands of sections that each claim the whole file would mean scanning it
+// thousands of times. This caps the total work; sections past the budget get
+// entropy null ("not measured") instead.
+export function entropyBudget(fileLength) {
+  let left = Math.max(64 * 1024 * 1024, fileLength * 4)
+  let skipped = 0
+  const measure = (bytes, start, end) => {
+    const n = end - start
+    if (n > left) { skipped++; return null }
+    left -= n
+    return shannon(bytes, start, end)
+  }
+  measure.skipped = () => skipped
+  return measure
+}
+
 // A finding is the unit the UI renders. `incomplete` marks results where the
 // absence of data must not be read as absence of the thing.
 export function finding(id, severity, title, detail, extra = {}) {

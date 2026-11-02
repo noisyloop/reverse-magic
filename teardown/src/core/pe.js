@@ -1,4 +1,4 @@
-import { Reader, hex, shannon, finding } from './util.js'
+import { Reader, hex, entropyBudget, finding } from './util.js'
 
 const MACHINES = {
   0x14c: 'x86 (i386)', 0x8664: 'x86-64 (AMD64)', 0x1c0: 'ARM', 0x1c4: 'ARM Thumb-2', 0xaa64: 'ARM64',
@@ -23,6 +23,9 @@ const API_HINTS = {
   'Keyboard / screen': ['SetWindowsHookExA', 'SetWindowsHookExW', 'GetAsyncKeyState', 'GetKeyState', 'BitBlt'],
 }
 
+// Real binaries rarely exceed a few dozen; the format allows 65535.
+const MAX_SECTIONS = 1024
+
 export function parsePE(bytes) {
   const r = new Reader(bytes, true)
   const findings = []
@@ -31,7 +34,8 @@ export function parsePE(bytes) {
   if (!r.has(peOff, 24)) throw new Error('PE header offset is outside the file')
 
   const machine = r.u16(peOff + 4)
-  const nSections = r.u16(peOff + 6)
+  const declaredSections = r.u16(peOff + 6)
+  const nSections = Math.min(declaredSections, MAX_SECTIONS)
   const timestamp = r.u32(peOff + 8)
   const optSize = r.u16(peOff + 20)
   const characteristics = r.u16(peOff + 22)
@@ -65,6 +69,7 @@ export function parsePE(bytes) {
   // Sections
   const secOff = optOff + optSize
   const sections = []
+  const sectionEntropy = entropyBudget(bytes.length)
   for (let i = 0; i < nSections; i++) {
     const o = secOff + i * 40
     if (!r.has(o, 40)) break
@@ -79,7 +84,7 @@ export function parsePE(bytes) {
       rawPtr,
       rawSize,
       flags: [chars & 0x20000000 ? 'X' : '-', chars & 0x40000000 ? 'R' : '-', chars & 0x80000000 ? 'W' : '-'].join(''),
-      entropy: rawSize && rawPtr < bytes.length ? shannon(bytes, rawPtr, end) : 0,
+      entropy: rawSize && rawPtr < bytes.length ? sectionEntropy(bytes, rawPtr, end) : 0,
     })
   }
 
@@ -157,6 +162,9 @@ export function parsePE(bytes) {
     findings.push(finding('pe.overlay', 'notice', 'Overlay data after the last section',
       `${overlayUnsigned.toLocaleString()} bytes at ${hex(lastEnd)}. Installers, self-extractors and appended payloads all look like this.`, { off: lastEnd, confidence: 'high' }))
   }
+
+  if (declaredSections > nSections) findings.push(finding('pe.manysections', 'notice', 'Section table only partly read', `The header declares ${declaredSections.toLocaleString()} sections; the first ${nSections.toLocaleString()} were parsed.`, { incomplete: true }))
+  if (sectionEntropy.skipped()) findings.push(finding('pe.entropyskip', 'notice', 'Some section entropy not measured', `${sectionEntropy.skipped()} section(s) were skipped because the sections overlap far more data than the file holds.`, { incomplete: true }))
 
   const hot = sections.filter((s) => s.entropy > 7.2 && s.rawSize > 2048)
   if (hot.length) {

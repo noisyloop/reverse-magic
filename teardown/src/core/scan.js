@@ -102,10 +102,43 @@ const IOC_PATTERNS = {
   url: /\b(?:https?|ftp|wss?):\/\/[^\s"'<>\\^`{|}]{4,200}/gi,
   email: /\b[A-Za-z0-9._%+-]{2,40}@[A-Za-z0-9.-]{2,60}\.[A-Za-z]{2,10}\b/g,
   ipv4: /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g,
-  domain: new RegExp(`\\b(?:[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?\\.)+(?:${TLDS})\\b`, 'gi'),
   winpath: /\b[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n\s]{1,60}\\){0,8}[^\\/:*?"<>|\r\n\s]{1,60}/g,
   registry: /\b(?:HKEY_[A-Z_]+|HKLM|HKCU)\\[\w\\ .\-{}]{3,120}/g,
   unixpath: /(?:^|[\s"'=])(\/(?:etc|usr|var|tmp|bin|opt|home|proc|dev|root|Library|System|Applications)\/[\w.\-/]{2,100})/g,
+}
+
+// Domains are found by tokenising runs of hostname characters and checking the
+// labels, not with one nested-quantifier regex: that regex backtracks
+// quadratically on input like "a.a.a.a…", and a crafted file could stall the
+// worker for minutes. This pass is linear in the length of the string.
+const TLD_SET = new Set(TLDS.split('|'))
+const HOST_RUN = /[a-z0-9][a-z0-9.-]*/gi
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/i
+const WORD = /\w/
+
+function findDomains(text, emit) {
+  HOST_RUN.lastIndex = 0
+  let m
+  while ((m = HOST_RUN.exec(text))) {
+    const run = m[0]
+    const end = m.index + run.length
+    // Same boundary rule as \b: the run must not touch another word character ("_").
+    if ((m.index > 0 && WORD.test(text[m.index - 1])) || (end < text.length && WORD.test(text[end]))) continue
+    if (run.length > 1024 || run.indexOf('.') < 0) continue
+    const labels = run.split('.')
+    // Split into stretches of valid labels; in each, keep up to the last TLD label.
+    let segStart = 0
+    for (let i = 0; i <= labels.length; i++) {
+      if (i < labels.length && LABEL.test(labels[i])) continue
+      let last = -1
+      for (let j = i - 1; j > segStart; j--) if (TLD_SET.has(labels[j].toLowerCase())) { last = j; break }
+      if (last > segStart) {
+        const d = labels.slice(segStart, last + 1).join('.')
+        if (d.length <= 253 && emit(d)) return
+      }
+      segStart = i + 1
+    }
+  }
 }
 
 const DOMAIN_NOISE = /^(?:\d+(?:\.\d+)+|.*\.(?:dll|exe|sys|so|dylib|py|js|c|h|cpp|rs|go|txt|json|xml|png|jpg))$/i
@@ -116,7 +149,11 @@ export function defang(s) {
 
 // IOCs come from the extracted strings, not raw bytes, so every hit has an offset.
 export function extractIocs(strings) {
-  const buckets = Object.fromEntries(Object.keys(IOC_PATTERNS).map((k) => [k, new Map()]))
+  const buckets = Object.fromEntries([...Object.keys(IOC_PATTERNS), 'domain'].map((k) => [k, new Map()]))
+  const add = (kind, val, off) => {
+    if (!buckets[kind].has(val)) buckets[kind].set(val, { value: val, off, count: 1 })
+    else buckets[kind].get(val).count++
+  }
   for (const s of strings) {
     const text = s.text
     if (text.length < 4) continue
@@ -126,12 +163,15 @@ export function extractIocs(strings) {
       let guard = 0
       while ((m = re.exec(text)) && guard++ < 20) {
         const val = (kind === 'unixpath' ? m[1] : m[0]).replace(/[.,;)\]]+$/, '')
-        if (kind === 'domain' && DOMAIN_NOISE.test(val)) continue
         if (kind === 'ipv4' && /^(?:0\.|255\.|127\.0\.0\.1$)/.test(val)) continue
-        if (!buckets[kind].has(val)) buckets[kind].set(val, { value: val, off: s.off, count: 1 })
-        else buckets[kind].get(val).count++
+        add(kind, val, s.off)
       }
     }
+    let n = 0
+    findDomains(text, (d) => {
+      if (!DOMAIN_NOISE.test(d)) add('domain', d, s.off)
+      return ++n >= 20
+    })
   }
   const out = {}
   for (const [kind, map] of Object.entries(buckets)) out[kind] = [...map.values()].slice(0, 300)

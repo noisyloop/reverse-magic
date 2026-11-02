@@ -1,4 +1,4 @@
-import { Reader, hex, shannon, finding } from './util.js'
+import { Reader, hex, entropyBudget, finding } from './util.js'
 
 const MACHINES = {
   0x03: 'x86', 0x3e: 'x86-64', 0x28: 'ARM', 0xb7: 'AArch64', 0xf3: 'RISC-V', 0x08: 'MIPS', 0x14: 'PowerPC',
@@ -75,6 +75,7 @@ export function parseELF(bytes) {
     })
   }
   const strOff = raw[shstrndx]?.offset
+  const sectionEntropy = entropyBudget(bytes.length)
   for (const s of raw) {
     const name = strOff != null && r.has(strOff + s.nameOff) ? r.cstr(strOff + s.nameOff, 64) : ''
     const end = Math.min(bytes.length, s.offset + s.size)
@@ -85,7 +86,7 @@ export function parseELF(bytes) {
       offset: s.offset,
       size: s.size,
       flags: (s.flags & 4 ? 'X' : '-') + (s.flags & 2 ? 'A' : '-') + (s.flags & 1 ? 'W' : '-'),
-      entropy: s.type !== 8 && s.size > 0 && s.offset < bytes.length ? shannon(bytes, s.offset, end) : 0,
+      entropy: s.type !== 8 && s.size > 0 && s.offset < bytes.length ? sectionEntropy(bytes, s.offset, end) : 0,
     })
   }
 
@@ -96,11 +97,12 @@ export function parseELF(bytes) {
   if (dyn) {
     const strtab = raw[dyn.link]
     const step = is64 ? 16 : 8
-    for (let o = dyn.offset; o + step <= dyn.offset + dyn.size && r.has(o, step); o += step) {
+    // Capped: a crafted DYNAMIC section could otherwise list millions of entries.
+    for (let o = dyn.offset, k = 0; k < 65536 && o + step <= dyn.offset + dyn.size && r.has(o, step); o += step, k++) {
       const tag = is64 ? r.u64(o) : r.u32(o)
       const val = is64 ? r.u64(o + 8) : r.u32(o + 4)
       if (tag === 0) break
-      if (tag === 1 && strtab) needed.push(r.cstr(strtab.offset + val, 128))
+      if (tag === 1 && strtab && needed.length < 1024) needed.push(r.cstr(strtab.offset + val, 128))
       if ((tag === 15 || tag === 29) && strtab) info[tag === 29 ? 'runpath' : 'rpath'] = r.cstr(strtab.offset + val, 256)
       if (tag === 14 && strtab) info.soname = r.cstr(strtab.offset + val, 128)
     }
@@ -133,6 +135,7 @@ export function parseELF(bytes) {
   if (stripped) findings.push(finding('elf.stripped', 'info', 'Symbol table stripped', 'No .symtab section. Function names are mostly gone; only dynamic symbols remain.'))
   if (!sections.length) findings.push(finding('elf.nosections', 'notice', 'No section headers', 'Stripped section table is common in packed or hand-crafted binaries, but also in some embedded builds.', { incomplete: true }))
 
+  if (sectionEntropy.skipped()) findings.push(finding('elf.entropyskip', 'notice', 'Some section entropy not measured', `${sectionEntropy.skipped()} section(s) were skipped because the sections overlap far more data than the file holds.`, { incomplete: true }))
   const hot = sections.filter((s) => s.entropy > 7.2 && s.size > 4096)
   if (hot.length) findings.push(finding('elf.entropy', 'warn', 'High-entropy sections', `${hot.map((s) => `${s.name} (${s.entropy.toFixed(2)})`).join(', ')}. Heuristic only; compressed data triggers it too.`, { confidence: 'low' }))
   if (segments.some((s) => s.type === 'LOAD' && s.flags === 'RWX')) findings.push(finding('elf.rwx', 'warn', 'Writable and executable segment', 'A LOAD segment is mapped RWX.', { confidence: 'medium' }))
